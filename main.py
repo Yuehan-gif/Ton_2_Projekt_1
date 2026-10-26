@@ -8,11 +8,25 @@ f = 1000 #Signalfrequenz
 a = 1 #Amplitude
 d = 3 #Duration
 x = np.linspace(0, d, fAbt*d)
+#Kalibrierungston:
+cal_amp = 10 ** (-20 / 20) #-20 dBFS als Richtwert
+x_cal = np.linspace(0, 60, int(fAbt * 30))
+cal_sound = cal_amp * np.sin(2 * np.pi * 1000 * x_cal)
 FREQUENCIES = [125, 250, 500, 1000, 2000, 4000, 8000] #Frequenzen, die gemessen werden sollen
 
-verdeckung = input("Mit Verdeckung? (ja/nein):").lower() #Aktivierung/Deaktivierung von Verdeckung
+verdeckung = input("Mit Verdeckung? (ja/nein):").strip().lower() #Aktivierung/Deaktivierung von Verdeckung
+while verdeckung not in ["ja", "nein"]:
+    verdeckung = input("Bitte mit ja oder nein antworten: ").strip().lower()
 data_freq = [] #gemessene Frequenz
 data_volume = [] #gemessene Lautstärke
+data_volume_1khz = []
+print (f"Messung des Audiogramms {'mit' if verdeckung == 'ja' else 'ohne'} Verdecker:")
+
+print("Lautstärkekalibrierung:")
+sd.play(cal_sound, fAbt)
+input("Enter zum Bestätigen.")
+sd.stop()
+print("Lautstärke kalibriert.\n")
 
 #Funktion zum Abspielen des Signals mit oder ohne Verdeckung
 def sin_play(frequency, amplitude):
@@ -28,25 +42,43 @@ def sin_play(frequency, amplitude):
 #Messung für die einzelnen Frequenzen
 for freq in FREQUENCIES:
     eingabe = ""
+    letzter_ton = None
+    print (f"Frequenz = {freq}:")
     while eingabe != "nein":
-        a = float(input("Lautstärke eingeben (0-100): ")) / 100
-        print (a)
+        a_dbfs = float(input("Lautstärke in dBFS eingeben (-90 bis 0, positive Werte werden in negative umgewandelt): "))
+        if a_dbfs > 0:
+            a_dbfs = -a_dbfs
+        a = 10 ** (a_dbfs / 20) #Umrechnung von dBFS lineare Amplitude
+        print (f"Lautstärke (dBFS): {a_dbfs}")
         sin_play(freq, a)
-        a_dbfs = 20 * np.log10(max(a, 1e-6)) #Umwandlung der Lautstärke in dBFS
-        eingabe = input ("War der Ton hörbar? (ja/nein):").lower()
+        eingabe = input ("War der Ton hörbar? (ja/nein):").strip().lower()
+        while eingabe not in ["ja", "", "yes", "nein", "no", "ne"]:
+            eingabe = input("Bitte mit ja oder nein antworten: ").strip().lower()
+        #Speichern der noch hörbaren Lautstärke
+        if eingabe in ["ja", "", "yes"]:
+            letzter_ton = a_dbfs
+        #Überprüfung ob überhaupt ein hörbarer Ton gemessen wurde
+        elif eingabe == "nein" and letzter_ton is None:
+            print("Der erste Ton war nicht hörbar! Bitte einen lauteren Ton wählen")
+            eingabe = ""
+
     #Speicherung der Daten:
     data_freq.append(freq)
-    data_volume.append(a)
+    data_volume.append(letzter_ton)
+
+for vol in data_volume:
+    data_volume_1khz.append(vol - data_volume[3])
+
 
 #Audiogramm:
-plt.plot(data_freq, data_volume, marker='o', linestyle='-', color='b')
+plt.plot(data_freq, data_volume_1khz, marker='o', linestyle='-', color='b')
 plt.xscale("log")
 plt.xticks(data_freq, labels=data_freq)
 plt.gca().xaxis.set_major_formatter(ScalarFormatter())
 plt.minorticks_off()
 plt.grid(True, which="both", ls="--", alpha=0.5)
 plt.xlabel("Frequenz (Hz)")
-plt.ylabel("Lautstärke (dBFS)")
-plt.title("Audiogramm")
+plt.ylabel("Relativer Pegel zu 1 kHz (dB)")
+plt.title(f"Audiogramm ({'mit' if verdeckung == 'ja' else 'ohne'} Verdecker)")
 
 plt.show()
