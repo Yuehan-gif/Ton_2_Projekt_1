@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sounddevice as sd
+from matplotlib.ticker import ScalarFormatter
 
 fAbt = 44100 #Abtastrate
 f = 1000 #Signalfrequenz
@@ -10,8 +11,8 @@ x = np.linspace(0, d, fAbt*d)
 FREQUENCIES = [125, 250, 500, 1000, 2000, 4000, 8000]
 
 eingabe = ""
-data_freq = [125, 250, 500, 1000, 2000, 4000, 8000]
-data_volume = [1, 0.5,0.2,0.4,1,1,1]
+data_freq = []
+data_volume = []
 
 
 def sin_play(frequency, amplitude):
@@ -19,23 +20,26 @@ def sin_play(frequency, amplitude):
     sd.play(y, fAbt)
     sd.wait()
 
+
 for freq in FREQUENCIES:
     eingabe = ""
-    while eingabe != "no":
-        a = float(input("Enter volume (0-100): ")) / 100
+    while eingabe != "nein":
+        a = float(input("Lautstärke eingeben (0-100): ")) / 100
         print (a)
         sin_play(freq, a)
-        eingabe = input ("Did you hear the sine? (yes/no):").lower()
+        eingabe = input ("War der Ton hörbar? (ja/nein):").lower()
     data_freq.append(freq)
     data_volume.append(a)
 
-
-plt.stem(data_freq, data_volume)
+# Linienplot mit Datenpunkten statt Stem
+plt.plot(data_freq, data_volume, marker='o', linestyle='-', color='b')
 plt.xscale("log")
-
-# plt.xticks(frequenzen, labels=frequenzen)
-# Beschriftungen
-plt.xlabel("frequency [Hz]")
-plt.ylabel("Volume")
+plt.xticks(data_freq, labels=data_freq)
+plt.gca().xaxis.set_major_formatter(ScalarFormatter())
+plt.minorticks_off()
+plt.grid(True, which="both", ls="--", alpha=0.5)
+plt.xlabel("Frequenz [Hz]")
+plt.ylabel("Lautstärke (Amplitude)")
 plt.title("Audiogramm")
+
 plt.show()
